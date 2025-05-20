@@ -5,9 +5,9 @@
 
 # --- Configuration ---
 # Base Uptime Kuma Push URL with default parameters
-UPTIME_KUMA_PUSH_URL="https://status.483300.xyz/api/push/z1Iv2FpJTx?status=up&msg=OK&ping="
+UPTIME_KUMA_PUSH_URL=""
 # IP address to ping
-PING_IP="211.137.160.185"
+PING_IP=""
 # Disk usage threshold percentage (if usage >= threshold, status is 'down')
 DISK_THRESHOLD="90"
 
@@ -16,10 +16,10 @@ DISK_THRESHOLD="90"
 PING_OUTPUT=$(ping -c 5 $PING_IP)
 # Extract the average latency using grep and awk
 # Assumes standard ping output format
-AVERAGE_PING=$(echo "$PING_OUTPUT" | grep 'rtt min/avg/max/mdev' | awk -F'/' '{print $5}' | awk '{print int($1)}')
+AVERAGE_PING=$(echo "$PING_OUTPUT" | grep 'rtt min/avg/max/mdev' | awk -F'/' '{print $5}' | awk '{print $1}')
 
-# Check if ping was successful and we got a number
-if [[ -z "$AVERAGE_PING" || ! "$AVERAGE_PING" =~ ^[0-9]+$ ]]; then
+# Check if ping was successful and we got a valid number
+if [[ -z "$AVERAGE_PING" || ! "$AVERAGE_PING" =~ ^[0-9.]+$ ]]; then
     AVERAGE_PING=0 # Set to 0 if ping fails or output format changes
 fi
 
