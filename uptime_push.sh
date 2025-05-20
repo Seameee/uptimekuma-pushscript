@@ -13,10 +13,19 @@ DISK_THRESHOLD="90"
 
 # --- Get Average Ping Latency ---
 # Ping the IP 5 times and calculate the average latency
-PING_OUTPUT=$(ping -c 5 $PING_IP)
-# Extract the average latency using grep and awk
-# Assumes standard ping output format
-AVERAGE_PING=$(echo "$PING_OUTPUT" | grep 'rtt min/avg/max/mdev' | awk -F'/' '{print $5}' | awk '{print $1}')
+# Handle both standard ping and BusyBox ping output formats
+PING_OUTPUT=$(ping -c 5 $PING_IP 2>&1)
+if [[ "$PING_OUTPUT" == *"rtt min/avg/max/mdev"* ]]; then
+    # Standard ping output format
+    AVERAGE_PING=$(echo "$PING_OUTPUT" | grep 'rtt min/avg/max/mdev' | awk -F'/' '{print $5}' | awk '{print $1}')
+else
+    # BusyBox ping output format - extract average from summary line
+    AVERAGE_PING=$(echo "$PING_OUTPUT" | grep -E 'round-trip min/avg/max = [0-9.]+/[0-9.]+/[0-9.]+' | awk -F'/' '{print $4}' | awk '{print $1}')
+    # If still not found, try alternative BusyBox format
+    if [[ -z "$AVERAGE_PING" ]]; then
+        AVERAGE_PING=$(echo "$PING_OUTPUT" | grep -A1 '^---' | grep '^rtt' | awk -F'/' '{print $5}' | awk '{print $1}')
+    fi
+fi
 
 # Check if ping was successful and we got a valid number
 if [[ -z "$AVERAGE_PING" || ! "$AVERAGE_PING" =~ ^[0-9.]+$ ]]; then
@@ -24,8 +33,8 @@ if [[ -z "$AVERAGE_PING" || ! "$AVERAGE_PING" =~ ^[0-9.]+$ ]]; then
 fi
 
 # --- Get Total Disk Usage ---
-# Get the total disk usage percentage
-TOTAL_DISK_USAGE=$(df -h --total | tail -1 | awk '{printf $5}' | sed 's/%//')
+# Get root filesystem usage percentage
+TOTAL_DISK_USAGE=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
 
 # Check if we got a number
 if [[ -z "$TOTAL_DISK_USAGE" || ! "$TOTAL_DISK_USAGE" =~ ^[0-9]+$ ]]; then
