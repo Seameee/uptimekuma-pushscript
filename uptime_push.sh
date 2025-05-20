@@ -4,8 +4,8 @@
 # Monitors ping latency and total disk usage, and pushes to Uptime Kuma
 
 # --- Configuration ---
-# Replace with your actual Uptime Kuma Push URL
-UPTIME_KUMA_PUSH_URL="https://status.483300.xyz/api/push/z1Iv2FpJTx"
+# Base Uptime Kuma Push URL with default parameters
+UPTIME_KUMA_PUSH_URL="https://status.483300.xyz/api/push/z1Iv2FpJTx?status=up&msg=OK&ping="
 # IP address to ping
 PING_IP="211.137.160.185"
 # Disk usage threshold percentage (if usage >= threshold, status is 'down')
@@ -46,13 +46,20 @@ MESSAGE="Total disk usage is ${TOTAL_DISK_USAGE}%"
 
 # --- Execute Curl Command ---
 # Build and execute the curl command to push to Uptime Kuma
-curl \
-    --get \
-    --data-urlencode "status=${SERVICE_STATUS}" \
-    --data-urlencode "msg=${MESSAGE}" \
-    --data-urlencode "ping=${AVERAGE_PING}" \
-    --silent \
-    "${UPTIME_KUMA_PUSH_URL}"
+# Replace default parameters with actual values (URL encode message)
+ENCODED_MSG=$(printf '%s' "${MESSAGE}" | jq -sRr @uri)
+# Remove all default parameters first
+BASE_URL="${UPTIME_KUMA_PUSH_URL%%\?*}"
+FULL_URL="${BASE_URL}?status=${SERVICE_STATUS}&msg=${ENCODED_MSG}&ping=${AVERAGE_PING}"
+curl --silent "${FULL_URL}"
 
-# Redirect stdout and stderr to the log file
-exec >> /var/log/uptime_push.log 2>&1
+# Always log debug info regardless of terminal
+{
+    echo "=== $(date '+%Y-%m-%d %H:%M:%S') ==="
+    echo "Ping IP: ${PING_IP}"
+    echo "Average Ping: ${AVERAGE_PING}ms" 
+    echo "Disk Usage: ${TOTAL_DISK_USAGE}%"
+    echo "Service Status: ${SERVICE_STATUS}"
+    echo "Final Push URL: ${FULL_URL}"
+    echo "Curl Exit Code: $?"
+} >> /var/log/uptime_push.log
